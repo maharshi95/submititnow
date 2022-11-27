@@ -17,6 +17,6 @@ setuptools.setup(
     },
     license='MIT',
     packages=['submititnow'],
-    scripts=['bin/job_tracker'],
+    scripts=['bin/jt'],
     install_requires=['submitit', 'simple_colors', 'pandas'],
 )
