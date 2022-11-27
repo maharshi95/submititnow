@@ -14,28 +14,30 @@ def get_datetime_str():
     return str(dt.datetime.now()).split('.')[0]
 
 
-def get_default_log_dir():
+def get_default_submitit_log_dir():
     return os.environ.get('SUBMITIT_LOG_DIR', DEFAULT_SUBMITIT_LOG_DIR)
 
 
 def add_submitit_params(parser: argparse.ArgumentParser):
-    parser.add_argument('--slurm_account', default=None, help='SLURM account')
-    parser.add_argument('--slurm_partition', default=None, help='SLURM partition')
-    parser.add_argument('--slurm_qos', default=None, help='SLURM qos')
-    parser.add_argument('--slurm_mem', default=None, help='SLURM memory requirement')
-    parser.add_argument('--slurm_gres', default=None, help='SLURM GPU Resource requirement')
-    parser.add_argument('--slurm_time', default=None, help='SLURM time requirement')
+    slurm_group = parser.add_argument_group('Submitit parameters')
+    slurm_group.add_argument('--slurm_account', default=None, help='SLURM account')
+    slurm_group.add_argument('--slurm_partition', default=None, help='SLURM partition')
+    slurm_group.add_argument('--slurm_qos', default=None, help='SLURM qos')
+    slurm_group.add_argument('--slurm_mem', default=None, help='SLURM memory requirement')
+    slurm_group.add_argument('--slurm_gres', default=None, help='SLURM GPU Resource requirement')
+    slurm_group.add_argument('--slurm_time', default=None, help='SLURM time requirement')
     parser.add_argument('--exp_name', default=None, help='Experiment Name')
     parser.add_argument('--submitit_log_dir', default=None, help='base submitit log dir')
 
 
 def add_umiacs_params(parser: argparse.ArgumentParser):
-    parser.add_argument('--scavenger', action=argparse.BooleanOptionalAction)
-    parser.add_argument('--clip', action=argparse.BooleanOptionalAction)
+    umiacs_group = parser.add_argument_group('UMIACS parameters')
+    umiacs_group.add_argument('--scavenger', action=argparse.BooleanOptionalAction, help='Boolean flag to run experiments in scavenger mode')
+    umiacs_group.add_argument('--clip', action=argparse.BooleanOptionalAction, help='Boolean flag to run experiments using clip account')
 
 
 def get_submitit_log_dir(args: argparse.Namespace):
-    return args.submitit_log_dir if args.submitit_log_dir else get_default_log_dir()
+    return args.submitit_log_dir if args.submitit_log_dir else get_default_submitit_log_dir()
 
 
 def get_slurm_params(args: argparse.Namespace):
@@ -66,7 +68,7 @@ class Experiment:
             job_desc_function: Optional[Callable] = None,
             submitit_log_dir: Optional[str] = None):
 
-        self.submitit_log_dir = submitit_log_dir or get_default_log_dir()
+        self.submitit_log_dir = submitit_log_dir or get_default_submitit_log_dir()
         self.exp_name = exp_name
         self.job_func = job_func
         self.job_params = job_params
