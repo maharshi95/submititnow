@@ -1,0 +1,212 @@
+import os
+import csv
+import glob
+import sys
+import os.path as osp
+import pickle
+import json
+import argparse
+from functools import partial
+from typing import Optional
+import simple_colors
+import pandas as pd
+
+DEFAULT_SUBMITIT_LOG_DIR = f"{os.environ['HOME']}/.submitit/logs"
+# DEFAULT_SUBMITIT_LOG_DIR = '/fs/clip-scratch/rupak/.submitit/logs'
+# DEFAULT_SUBMITIT_LOG_DIR = '/fs/clip-scratch/mgor/.submitit/logs'
+
+
+def get_submitit_log_dir():
+    return os.environ.get('SUBMITIT_LOG_DIR', DEFAULT_SUBMITIT_LOG_DIR)
+
+def get_running_job_ids():
+    return list(map(lambda x:x.strip().split()[0].split('_')[0], os.popen('squeue -u mgor').read().splitlines()[1:]))
+
+def list_files(path: str):
+    files = []
+    # r=root, d=directories, f = files
+    for r, d, f in os.walk(path):
+        for file in f:
+            yield os.path.join(r, file)
+
+
+def find_job_files(job_id, task_id=None):
+    files = {}
+    root_dir = get_submitit_log_dir()
+    job_id_tag = f'{job_id}_{task_id}' if task_id is not None else str(job_id)
+    for path in list_files(root_dir):
+        if path.endswith('.sh') and str(job_id) in path:
+            files['sh'] = path
+        elif job_id_tag in path:
+            name = ext = path.rsplit('.')[-1]
+            if ext == 'pkl':
+                tag = name.rsplit('_')[-1]
+                files[tag] = path
+            else:
+                files[ext] = path
+    return files
+
+def get_job_filepaths(job_task: str):
+    if '_' in job_task:
+        job_id, task_id = job_task.split('_')
+    else:
+        job_id, task_id = job_task, 0
+    return find_job_files(job_id, task_id)
+
+
+def show_file_content(filepath: str):
+    os.system(f'cat {filepath}')
+
+
+def show_job_file_content(job_id, task_id, tag: str):
+    files = find_job_files(job_id, task_id)
+    print(json.dumps(files, indent=4))
+    show_file_content(files[tag])
+
+
+def load_job_states(job_id):
+    job_id = str(job_id)
+    filepaths = get_job_filepaths(job_id)
+    running_job_ids = get_running_job_ids()
+    
+    if 'out' not in filepaths and 'sh' in filepaths:
+        if job_id.split('_')[0] in running_job_ids:
+            return simple_colors.yellow('Job Queued')
+        else:
+            return simple_colors.cyan('Job Cancelled (Before exec)')
+    
+    out_filepath = filepaths['out']
+    err_filepath = filepaths['err']
+    
+    with open(out_filepath) as fp:
+        out_lines = list(filter(lambda l: l.startswith('submitit '), fp.readlines()))
+    
+    with open(err_filepath) as fp:
+        err_lines = list(filter(lambda l: l.startswith('srun: ') or l.startswith('slurmstepd: '), fp.readlines()))
+    
+    prefix, msg = out_lines[-1].split(' - ')
+    
+    def get_error_msg():
+        return err_lines[-1].split(':', 4)[-1].strip()
+    
+    if 'completed successfully' in msg:
+        return simple_colors.green('completed successfully')
+    elif 'triggered an exception' in msg:
+        return simple_colors.red('triggered an exception')
+    
+    if err_lines and 'error' in err_lines[-1]:
+        if 'CANCELLED' in err_lines[-1]:
+            return simple_colors.cyan('Job Cancelled (terminated)')
+        else:
+            return simple_colors.red('ERROR: ' + get_error_msg())
+
+    if 'Loading' in msg or 'Starting' in msg:        
+        msg = simple_colors.yellow('Job Running').strip()
+
+    return msg
+
+
+def load_csv(filename: str):
+    col_names=['timestamp', 'job_task', 'Output Path']
+    df = pd.read_csv(filename, delimiter='\t', names=col_names, header=None)
+    df['job'] = df['job_task'].map(lambda x: str(x).split('_')[0])
+    return df
+
+
+def load_job_trackers(exp_name: Optional[str] = None):
+    dirname = get_submitit_log_dir()
+    file_glob = f'{dirname}/{exp_name}.csv' if exp_name else f'{dirname}/*.csv'
+    dfs = [load_csv(filename) for filename in glob.glob(file_glob)]
+    return pd.concat(dfs)
+
+
+def process_ls_subcommand(args):
+    dirname = get_submitit_log_dir()
+    if args.exp_name is None:
+        os.system(f'ls -1 {dirname}')
+        df = load_job_trackers()
+        df['status'] = df['job_task'].apply(load_job_states)
+        print(df.to_string())
+    else:
+        dirname = osp.join(dirname, args.exp_name)
+        for file in list_files(dirname):
+            if file.endswith('submission.sh'):
+                print(file)
+        df = load_job_trackers(args.exp_name)
+        df['status'] = df['job_task'].apply(load_job_states)
+        print(df.to_string())
+
+
+def process_jobs_subcommand(args):
+    dirname = get_submitit_log_dir()
+    csv_filename = osp.join(dirname, f'{args.exp_name}.csv')
+    filenames = glob.glob(csv_filename)
+    for filename in filenames:
+        msg = f'Jobs in {filename}:'
+        print(msg)
+        print('-' * len(msg))
+        if args.job_id is None:
+            os.system(f'cat {csv_filename}')
+        else:
+            os.system(f'cat {csv_filename} | grep {args.job_id}')
+        print('=' * len(msg))
+        print()
+
+
+def process_tasks_subcommand(args):
+    dirname = get_submitit_log_dir()
+    csv_filename = osp.join(dirname, f'*.csv')
+    os.system(f'cat {csv_filename} | grep {args.job_id}')
+
+
+def get_job_filepath(job_id, file_type):
+    if '_' in job_id:
+        job_id, task_id = job_id.split('_')
+    else:
+        task_id = 0
+    return find_job_files(job_id, task_id)[file_type]
+    
+
+def process_cat_subcommand(args, file_type):
+    filepath = get_job_filepath(args.job_id, file_type)
+    os.system(f'cat {filepath}')
+
+
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser('Submitit Job Tracker')
+    subparsers = parser.add_subparsers(title='subcommands', description='', help='')
+
+    ls_parser = subparsers.add_parser('ls')
+    ls_parser.add_argument('exp_name', nargs="?", default=None)
+    ls_parser.set_defaults(func=process_ls_subcommand)
+
+    cat_parser = subparsers.add_parser('cat')
+    cat_parser.add_argument('file_type', choices=['err', 'out', 'sh'])
+    cat_parser.add_argument('job_id')
+    cat_parser.set_defaults(func=process_cat_subcommand)
+
+    jobs_parser = subparsers.add_parser('jobs')
+    jobs_parser.add_argument('exp_name', default=None)
+    jobs_parser.add_argument('job_id', default=None, nargs='?')
+    jobs_parser.set_defaults(func=process_jobs_subcommand)
+
+    tasks_parser = subparsers.add_parser('tasks')
+    tasks_parser.add_argument('job_id', default=None)
+    tasks_parser.set_defaults(func=process_tasks_subcommand)
+
+    sub_commands = [
+        ('err', 'e'),
+        ('out', 'o'),
+        ('sh', 'sh'),
+    ]
+
+    for command, alias in sub_commands:
+        s_parser = subparsers.add_parser(command, aliases=[alias])
+        s_parser.add_argument('job_id')
+        s_parser.set_defaults(func=partial(process_cat_subcommand, file_type=command))
+
+    args = parser.parse_args()
+    # print(args)
+    args.func(args)
