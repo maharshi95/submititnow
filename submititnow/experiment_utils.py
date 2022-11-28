@@ -72,12 +72,12 @@ def display_job_submission_status_on_console(exp: 'Experiment', wait_level: str)
                 f'Submitit logs        : {exp.logs_dir}\n')
     
     rich_print(f'[bold yellow]Execute the following command to monitor the jobs:[/bold yellow]\n')
-    rich_print(f'\t[bold]jt jobs {exp.exp_name}[/bold]\n')
+    rich_print(f'\t[bold bright_white]jt jobs {exp.exp_name} {exp.exp_id}[/bold bright_white]\n')
     
     
     def generate_console_table():
         table = Table()
-        table.add_column("JobID", justify="right", style="cyan", no_wrap=True)
+        table.add_column("JobID", justify="right", style="bold cyan", no_wrap=True)
         table.add_column("Description")
         table.add_column("State")
         table.add_column("Nodelist")
@@ -196,6 +196,7 @@ class Experiment:
         return jobs
 
     def assign_jobs(self, jobs: List[submitit.Job], job_descriptions: Iterable[str]):
+        self.exp_id = jobs[0].job_id.split('_')[0]
         for job, description in zip(jobs, job_descriptions):
             self.jobs[job.job_id] = job
             self.descriptions[job.job_id] = description
