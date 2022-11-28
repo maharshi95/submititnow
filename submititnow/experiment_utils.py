@@ -9,7 +9,7 @@ import submitit
 
 
 
-DEFAULT_SUBMITITNOW_DIR = os.path.expanduser('~/.submititnow')
+__FALLBACK_SUBMITITNOW_DIR = os.path.expanduser('~/.submititnow')
 
 
 def get_datetime_str():
@@ -17,7 +17,7 @@ def get_datetime_str():
 
 
 def get_default_submititnow_dir():
-    return Path(os.environ.get('SUBMITITNOW_DIR', DEFAULT_SUBMITITNOW_DIR))
+    return Path(os.environ.get('SUBMITITNOW_DIR', __FALLBACK_SUBMITITNOW_DIR))
 
 
 def add_submitit_params(parser: argparse.ArgumentParser):
@@ -56,7 +56,7 @@ def get_slurm_params(args: argparse.Namespace):
     return slurm_params
 
 
-def job_start_time(job):
+def job_start_time(job: submitit.Job):
     return dt.datetime.fromtimestamp(job._start_time)
 
 
