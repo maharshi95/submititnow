@@ -1,12 +1,13 @@
 #!/usr/bin/env python
-import argparse, os, sys
+from submititnow import experiment_utils
+from typing import Any, Mapping, Iterable, Sequence
+import itertools
+import importlib
+import argparse
+import os
+import sys
 sys.path.insert(0, os.getcwd())
 
-import importlib
-import itertools
-from typing import Any, Mapping
-
-from submititnow import experiment_utils
 
 def get_module_name(src_file: str):
     assert src_file.endswith('.py'), f"'{src_file}' is not a Python source file."
@@ -23,8 +24,47 @@ def kw_product(params: Mapping[str, Any]):
         yield d
 
 
+def make_args_sweepable(parser: argparse.ArgumentParser, sweep_args: Iterable[str]):
+    for action in parser._actions:
+        if action.dest in sweep_args:
+            if action.nargs == '*':
+                parser.error(f'Cannot sweep over variable {action.dest} because it is a list.')
+            action.nargs = '+'
+            action.required = True
+
+
+def create_module_args_list(
+        module_argparser: argparse.ArgumentParser,
+        sweep_args: Iterable[str],
+        downstream_args: Sequence[str]):
+
+    make_args_sweepable(module_argparser, sweep_args)
+
+    module_args_with_sweeps = module_argparser.parse_args(downstream_args)
+
+    module_args_dict = vars(module_args_with_sweeps)
+    sweeped_args_dict = dict(filter(lambda kv: kv[0] in sweep_args, module_args_dict.items()))
+
+    module_args_dict_list = [
+        module_args_dict | sweeped_args_dict
+        for sweeped_args_dict in kw_product(sweeped_args_dict)
+    ]
+    return [argparse.Namespace(**args_dict) for args_dict in module_args_dict_list]
+
+
+def job_description_function(args: argparse.Namespace):
+    """Job Description function generates a string description of the sweeped job parameters."""
+    tokens = []
+    for k, v in vars(args).items():
+        token = f"{k}='{v}'" if isinstance(v, str) else f'{k}={v}'
+        if k in sweep_args:
+            tokens.append(token)
+    return f'{", ".join(tokens)}' if tokens else '---'
+
+
 class UnSupportedPythonModuleError(Exception):
     def __init__(self, module_name: str):
+        # TODO: Add a more meaningful error message.
         super().__init__(f"Module '{module_name}' is not supported by submititnow.")
 
 
@@ -34,17 +74,17 @@ if __name__ == '__main__':
 
     experiment_utils.add_submitit_params(parser)
     experiment_utils.add_umiacs_params(parser)
-    
+
     parser.add_argument(
         '--sweep', nargs='*', default=[], help='List of parameters to sweep over.')
-    
+
     parser.add_argument(
-        '--silent', action=argparse.BooleanOptionalAction, default=False, 
+        '--silent', action=argparse.BooleanOptionalAction, default=False,
         help='Boolean flag to run experiments in silent mode.')
-    
+
     parser.add_argument(
-        '--wait_level', 
-        default='submitted', choices=['none', 'submitted', 'running', 'done'], 
+        '--wait_until',
+        default='submitted', choices=['none', 'submitted', 'running', 'done'],
         help='Wait until the job is in the specified state before returning.')
 
     args, downstream_args = parser.parse_known_args()
@@ -62,26 +102,8 @@ if __name__ == '__main__':
         raise UnSupportedPythonModuleError(target_module_name) from e
 
     sweep_args = {*args.sweep}
-    for module_action in module_argparser._actions:
-        if module_action.dest in sweep_args:
-            if module_action.nargs == '*':
-                parser.error(f'Cannot sweep over variable {module_action.dest} because it is a list.')
-            module_action.nargs = '+'
-            module_action.required = True
+    module_args_list = create_module_args_list(module_argparser, sweep_args, downstream_args)
 
-    module_args = module_argparser.parse_args(downstream_args)
-
-    module_args_dict = vars(module_args)
-    sweeped_args =  dict(filter(lambda kv: kv[0] in sweep_args, module_args_dict.items()))
-    module_args_dict_split = [
-        module_args_dict | sweeped_args_dict 
-        for sweeped_args_dict in kw_product(sweeped_args)
-    ]
-    module_args_list = [argparse.Namespace(**d) for d in module_args_dict_split]
-
-    def job_description_function(args):
-        return f'{target_module_name}: {vars(args)}'
-    
     experiment = experiment_utils.Experiment(
         exp_name,
         job_func=target_module.main,
@@ -91,4 +113,4 @@ if __name__ == '__main__':
 
     slurm_params = experiment_utils.get_slurm_params(args)
 
-    experiment.launch(slurm_params, verbose=not args.silent, wait_level=args.wait_level)
+    experiment.launch(slurm_params, verbose=not args.silent, wait_until=args.wait_until)

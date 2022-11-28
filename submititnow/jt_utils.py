@@ -56,6 +56,9 @@ def load_job_states(job_id):
     job_id = str(job_id)
     filepaths = get_job_filepaths(job_id)
     running_job_ids = get_running_job_ids()
+    
+    if 'sh' not in filepaths:
+        return 'UNSUBMITTED'
 
     if 'out' not in filepaths and 'sh' in filepaths:
         if job_id.split('_')[0] in running_job_ids:
@@ -72,13 +75,16 @@ def load_job_states(job_id):
     with open(err_filepath) as fp:
         err_lines = list(filter(lambda l: l.startswith('srun: ') or l.startswith('slurmstepd: '), fp.readlines()))
 
+    if not out_lines:
+        return 'PENDING'
+    
     prefix, msg = out_lines[-1].split(' - ')
 
     def get_error_msg():
         return err_lines[-1].split(':', 4)[-1].strip()
 
     if 'completed successfully' in msg:
-        return 'completed successfully'.upper()
+        return 'completed'.upper()
 
     elif 'triggered an exception' in msg:
         return 'FAILED: Triggered an Exception'
@@ -131,10 +137,11 @@ class JTExp:
         print(df)
 
     def load_csv(self):
-        col_names = ['Timestamp', 'Job_Task', 'Job Description']
+        col_names = ['Date & Time', 'Job ID', 'Job Description', 'Exp Info']
         df = pd.read_csv(self.tracker_file, delimiter='\t', names=col_names, header=None)
-        job_series = df['Job_Task'].map(lambda x: int(str(x).split('_')[0]))
-        df.insert(0, 'Job', job_series)
+        df['Exp Info'] = df['Exp Info'].fillna('Not Found in tracker')
+        job_series = df['Job ID'].map(lambda x: int(str(x).split('_')[0]))
+        df.insert(0, 'Exp ID', job_series)
         # df = df.set_index('job', append=True).swaplevel(0,1)
         return df
 
