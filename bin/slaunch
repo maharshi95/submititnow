@@ -1,10 +1,8 @@
 #!/usr/bin/env python
-
-import os.path as osp
-import sys
 import argparse
 import importlib
-import submitit
+import itertools
+from typing import Any, Mapping
 
 from submititnow import experiment_utils
 
@@ -12,34 +10,83 @@ def get_module_name(src_file: str):
     assert src_file.endswith('.py'), f"'{src_file}' is not a Python source file."
     return '.'.join(src_file.rsplit('.')[0].split('/'))
 
-if __name__ =='__main__':
+
+def kw_product(params: Mapping[str, Any]):
+    if not params:
+        yield {}
+        return
+    keys, values = zip(*params.items())
+    for bundle in itertools.product(*values):
+        d = dict(zip(keys, bundle))
+        yield d
+
+
+class UnSupportedPythonModuleError(Exception):
+    def __init__(self, module_name: str):
+        super().__init__(f"Module '{module_name}' is not supported by submititnow.")
+
+
+if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('src_file', help='Source file to execute')
+
     experiment_utils.add_submitit_params(parser)
     experiment_utils.add_umiacs_params(parser)
     
-    args, downstream_args = parser.parse_known_args()
+    parser.add_argument(
+        '--sweep', nargs='*', default=[], help='List of parameters to sweep over.')
     
+    parser.add_argument(
+        '--silent', action=argparse.BooleanOptionalAction, default=False, 
+        help='Boolean flag to run experiments in silent mode.')
+    
+    parser.add_argument(
+        '--wait_level', 
+        default='submitted', choices=['none', 'submitted', 'running', 'done'], 
+        help='Wait until the job is in the specified state before returning.')
+
+    args, downstream_args = parser.parse_known_args()
+
     if args.clip and args.scavenger:
         parser.error('Cannot specify both --clip and --scavenger')
-    
+
     target_module_name = get_module_name(args.src_file)
     exp_name = args.exp_name or target_module_name
     target_module = importlib.import_module(target_module_name)
-    
-    module_argparser = target_module.add_arguments()
+
+    try:
+        module_argparser = target_module.add_arguments()
+    except AttributeError as e:
+        raise UnSupportedPythonModuleError(target_module_name) from e
+
+    sweep_args = {*args.sweep}
+    for module_action in module_argparser._actions:
+        if module_action.dest in sweep_args:
+            if module_action.nargs == '*':
+                parser.error(f'Cannot sweep over variable {module_action.dest} because it is a list.')
+            module_action.nargs = '+'
+            module_action.required = True
+
     module_args = module_argparser.parse_args(downstream_args)
-    job_description = args.src_file + ' ' + ' '.join(downstream_args)
+
+    module_args_dict = vars(module_args)
+    sweeped_args =  dict(filter(lambda kv: kv[0] in sweep_args, module_args_dict.items()))
+    module_args_dict_split = [
+        module_args_dict | sweeped_args_dict 
+        for sweeped_args_dict in kw_product(sweeped_args)
+    ]
+    module_args_list = [argparse.Namespace(**d) for d in module_args_dict_split]
+
+    def job_description_function(args):
+        return f'{target_module_name}: {vars(args)}'
     
     experiment = experiment_utils.Experiment(
-        exp_name, 
+        exp_name,
         job_func=target_module.main,
-        job_params=[module_args],
-        job_desc_function=lambda p: job_description,
-        submitit_log_dir=args.submitit_log_dir)
-    
+        job_params=module_args_list,
+        job_desc_function=job_description_function,
+        submititnow_dir=args.submititnow_dir)
+
     slurm_params = experiment_utils.get_slurm_params(args)
-    
-    job = experiment.launch(**slurm_params)[0]
-    
-    print(job.result())
+
+    experiment.launch(slurm_params, verbose=not args.silent, wait_level=args.wait_level)

@@ -1,21 +1,26 @@
 import argparse
 import os
 import os.path as osp
+from pathlib import Path
 import datetime as dt
 import functools
-
+import time
+from rich import print as rich_print
+from rich.live import Live
+from rich.table import Table
 import submitit
-from typing import List, Iterable, Optional, Callable
+from typing import List, Iterable, Optional, Callable, Any
 
-DEFAULT_SUBMITIT_LOG_DIR = os.path.expanduser('~/.submitit/logs')
+
+DEFAULT_SUBMITITNOW_DIR = os.path.expanduser('~/.submititnow')
 
 
 def get_datetime_str():
     return str(dt.datetime.now()).split('.')[0]
 
 
-def get_default_submitit_log_dir():
-    return os.environ.get('SUBMITIT_LOG_DIR', DEFAULT_SUBMITIT_LOG_DIR)
+def get_default_submititnow_dir():
+    return Path(os.environ.get('SUBMITITNOW_DIR', DEFAULT_SUBMITITNOW_DIR))
 
 
 def add_submitit_params(parser: argparse.ArgumentParser):
@@ -27,7 +32,7 @@ def add_submitit_params(parser: argparse.ArgumentParser):
     slurm_group.add_argument('--slurm_gres', default=None, help='SLURM GPU Resource requirement')
     slurm_group.add_argument('--slurm_time', default=None, help='SLURM time requirement')
     parser.add_argument('--exp_name', default=None, help='Experiment Name')
-    parser.add_argument('--submitit_log_dir', default=None, help='base submitit log dir')
+    parser.add_argument('--submititnow_dir', default=None, help='base submitit log dir')
 
 
 def add_umiacs_params(parser: argparse.ArgumentParser):
@@ -37,7 +42,7 @@ def add_umiacs_params(parser: argparse.ArgumentParser):
 
 
 def get_submitit_log_dir(args: argparse.Namespace):
-    return args.submitit_log_dir if args.submitit_log_dir else get_default_submitit_log_dir()
+    return Path(args.submititnow_dir) if args.submititnow_dir else get_default_submititnow_dir()
 
 
 def get_slurm_params(args: argparse.Namespace):
@@ -58,6 +63,80 @@ def job_start_time(job):
     return dt.datetime.fromtimestamp(job._start_time)
 
 
+def display_job_submission_status_on_console(exp: 'Experiment', wait_level: str):
+    print()
+    rich_print(f' \t:rocket: [bold]Launched {len(exp.jobs)} job(s)[/bold] :rocket: ')
+    print()
+    rich_print(f'\t:test_tube: '
+                f'Experiment name      : {exp.exp_name}\n')
+    rich_print(f'\t:bar_chart: '
+                f'Experiment tracker   : {exp.tracker_file}\n')
+    rich_print(f'\t:ledger: '
+                f'Submitit logs        : {exp.logs_dir}\n')
+    
+    rich_print(f'[bold yellow]Execute the following command to monitor the jobs:[/bold yellow]\n')
+    rich_print(f'\t[bold]jt jobs {exp.exp_name}[/bold]\n')
+    
+    
+    def generate_console_table():
+        table = Table()
+        table.add_column("JobID", justify="right", style="cyan", no_wrap=True)
+        table.add_column("Description")
+        table.add_column("State")
+        table.add_column("Nodelist")
+        
+        for job_id, job in exp.jobs.items():
+            job_description = exp.descriptions[job_id]
+            jobs_info = job.get_info()
+            if not jobs_info:
+                job_state = 'UNKNOWN'
+                nodelist = f'[dark_orange]UNKNOWN'
+            else:
+                job_state = jobs_info['State']
+                nodelist = jobs_info['NodeList']
+            
+            state_color = {
+                'UNKNOWN': 'dark_orange',
+                'PENDING': 'yellow',
+                'RUNNING': 'bright_green',
+                'COMPLETED': 'bold green4',
+                'FAILED': 'bold red',
+            }[job_state]
+            
+            job_state_decorated = f"[{state_color}]{job_state}"
+            # if job_state == 'FAILED':
+            #     job_state_decorated = ":skull: " + job_state_decorated
+            # if job_state == 'COMPLETED':
+            #     job_state_decorated = ":tada: " + job_state_decorated
+            row_text = f"{job_id}", f"{job_description}", job_state_decorated, nodelist
+            table.add_row(*row_text)
+        return table
+    
+    waiting_states = set()
+    if wait_level == 'submitted':
+        waiting_states = {'UNKNOWN'}
+    if wait_level == 'running':
+        waiting_states = {'UNKNOWN', 'PENDING'}
+    if wait_level == 'done':
+        waiting_states = {'UNKNOWN', 'PENDING', 'RUNNING'}
+
+    with Live(generate_console_table(), refresh_per_second=10) as live:
+        jobs_in_queue = {*exp.jobs.values()}
+        jobs_submitted = set()
+        wait_over = False
+        while not wait_over:
+            wait_over = True
+            for job in jobs_in_queue:
+                if job.state in waiting_states:
+                    wait_over = False
+                else:
+                    jobs_submitted.add(job)
+                live.update(generate_console_table())        
+            jobs_in_queue = jobs_in_queue - jobs_submitted
+            time.sleep(0.1)
+
+
+
 class Experiment:
 
     def __init__(
@@ -66,9 +145,9 @@ class Experiment:
             job_func: Callable,
             job_params: Iterable[argparse.Namespace],
             job_desc_function: Optional[Callable] = None,
-            submitit_log_dir: Optional[str] = None):
+            submititnow_dir: Optional[str] = None):
 
-        self.submitit_log_dir = submitit_log_dir or get_default_submitit_log_dir()
+        self.submititnow_dir = Path(submititnow_dir) if submititnow_dir else get_default_submititnow_dir()
         self.exp_name = exp_name
         self.job_func = job_func
         self.job_params = job_params
@@ -78,14 +157,27 @@ class Experiment:
 
     @property
     def exp_dir(self):
-        return osp.join(self.submitit_log_dir, self.exp_name)
+        return self.submititnow_dir / 'experiments' / self.exp_name
 
     @property
-    def exp_tracker_file(self):
-        return self.exp_dir + '.csv'
+    def tracker_file(self):
+        return self.exp_dir / 'tracker.csv'
+    
+    @property
+    def logs_dir(self):
+        return self.exp_dir / 'submitit_logs'
 
-    def launch(self, **slurm_params):
-        
+    def launch(self, slurm_params: dict[str, Any], *, verbose:bool=True, wait_level: str = 'submitted'):
+        """Launches the experiment on the cluster. If wait_level is None, the function returns immediately.
+
+        Args:
+            slurm_params (dict): Dictionary of slurm parameters.
+            verbose: Boolean flag to print job status. Optional, defaults to True
+            wait_level:. Defaults to 'submitted'. Options are 'none', 'submitted', 'running', 'done'
+
+        Returns:
+            _type_: _description_
+        """
         if slurm_params['slurm_account'] == 'scavenger':
             slurm_params[f'slurm_partition'] = 'scavenger'
             slurm_params[f'slurm_qos'] = 'scavenger'
@@ -93,20 +185,17 @@ class Experiment:
         elif slurm_params['slurm_account'] == 'clip':
             slurm_params[f'slurm_partition'] = 'clip'
         
-        self.executor = submitit.AutoExecutor(self.exp_dir)
+        self.executor = submitit.AutoExecutor(self.logs_dir)
         self.executor.update_parameters(**slurm_params)
 
-        tasks = [
-            functools.partial(self.job_func, param) for param in self.job_params
-        ]
-
-        jobs = self.executor.submit_array(tasks)
+        jobs = self.executor.map_array(self.job_func, self.job_params)
         job_descriptions = map(self.job_desc_function, self.job_params)
 
         self.assign_jobs(jobs, job_descriptions)
-        print(f'Launched {len(jobs)} jobs.')
-        for job in jobs:
-            print(job)
+        
+        if verbose:
+            display_job_submission_status_on_console(self, wait_level)
+        
         return jobs
 
     def assign_jobs(self, jobs: List[submitit.Job], job_descriptions: Iterable[str]):
@@ -122,5 +211,5 @@ class Experiment:
 
     def __update_tracker(self, job, job_desc):
         job_start_time_str = str(job_start_time(job)).split('.')[0]
-        with open(self.exp_tracker_file, 'a') as fp:
+        with open(self.tracker_file, 'a') as fp:
             fp.write(f"{job_start_time_str}\t{job.job_id}\t{job_desc}\n")

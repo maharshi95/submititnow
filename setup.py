@@ -17,6 +17,6 @@ setuptools.setup(
     },
     license='MIT',
     packages=['submititnow'],
-    scripts=['bin/jt'],
-    install_requires=['submitit', 'simple_colors', 'pandas'],
+    scripts=['bin/jt', 'bin/slaunch'],
+    install_requires=['submitit', 'simple_colors', 'pandas', 'typer[all]'],
 )
