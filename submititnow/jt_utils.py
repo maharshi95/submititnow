@@ -140,7 +140,5 @@ class JTExp:
 
 
 def load_job_trackers(exp_name: Optional[str] = None):
-    dirname = get_default_submititnow_dir()
-    file_glob = f'{dirname}/{exp_name}.csv' if exp_name else f'{dirname}/*.csv'
-    dfs = [load_csv(filename) for filename in glob.glob(file_glob)]
-    return pd.concat(dfs)
+   # TODO(mgor): implement loading all trackers if exp_name is None
+   pass
