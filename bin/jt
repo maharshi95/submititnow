@@ -141,7 +141,7 @@ def display_jobs_info(
     table = df_to_table(df, table, show_index=False)
 
     table.box = CUSTOM_HORIZONTALS
-    
+    print()
     rich_print(table)
 
 
