@@ -20,7 +20,11 @@ console = Console(highlight=True)
 
 def show_file_content(filepath: str):
     with open(filepath) as fp:
-        print(fp.read().replace(']\n ', ']\r'))
+        text = fp.read().replace(']\n ', ']\r') # Handle tqdm progress bars
+        for line in text.split('\n'):
+            if '\r' in line:
+                line = line[line.rindex('\r') + 1:]
+            rich_print(line)
 
 
 def df_to_table(
