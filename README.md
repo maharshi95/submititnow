@@ -3,5 +3,5 @@ A "makeshift" toolkit to create and launch Jobs from existing python scripts on 
 
 # Installation
 ```
-pip install -U git+https://github.com/maharshi95/submititnow.git@dev
+pip install -U git+https://github.com/maharshi95/submititnow.git
 ```
