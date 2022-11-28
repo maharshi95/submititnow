@@ -1,15 +1,12 @@
-import argparse
-import os
-import os.path as osp
+import argparse, os, time, datetime as dt
 from pathlib import Path
-import datetime as dt
-import functools
-import time
+from typing import List, Iterable, Optional, Callable, Any
+
 from rich import print as rich_print
 from rich.live import Live
 from rich.table import Table
 import submitit
-from typing import List, Iterable, Optional, Callable, Any
+
 
 
 DEFAULT_SUBMITITNOW_DIR = os.path.expanduser('~/.submititnow')
@@ -176,7 +173,7 @@ class Experiment:
             wait_level:. Defaults to 'submitted'. Options are 'none', 'submitted', 'running', 'done'
 
         Returns:
-            _type_: _description_
+            list: List of SLURMJob objects
         """
         if slurm_params['slurm_account'] == 'scavenger':
             slurm_params[f'slurm_partition'] = 'scavenger'

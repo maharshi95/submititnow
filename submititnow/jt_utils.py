@@ -1,17 +1,10 @@
 import os
 import glob
-import os.path as osp
-import json
-from pathlib import Path
 from dataclasses import dataclass
-import argparse
-from functools import partial
 from typing import Optional
-import simple_colors
 import pandas as pd
-from typing import Union
 
-from experiment_utils import get_default_submititnow_dir
+from submititnow.experiment_utils import get_default_submititnow_dir
 
 submititnow_root = get_default_submititnow_dir()
 
@@ -86,7 +79,7 @@ def load_job_states(job_id):
 
     if 'completed successfully' in msg:
         return 'completed successfully'.upper()
-    
+
     elif 'triggered an exception' in msg:
         return 'FAILED: Triggered an Exception'
 
