@@ -6,12 +6,13 @@ import importlib
 import argparse
 import os
 import sys
+
 sys.path.insert(0, os.getcwd())
 
 
 def get_module_name(src_file: str):
-    assert src_file.endswith('.py'), f"'{src_file}' is not a Python source file."
-    return '.'.join(src_file.rsplit('.')[0].split('/'))
+    assert src_file.endswith(".py"), f"'{src_file}' is not a Python source file."
+    return ".".join(src_file.rsplit(".")[0].split("/"))
 
 
 def kw_product(params: Mapping[str, Any]):
@@ -27,9 +28,11 @@ def kw_product(params: Mapping[str, Any]):
 def make_args_sweepable(parser: argparse.ArgumentParser, sweep_args: Iterable[str]):
     for action in parser._actions:
         if action.dest in sweep_args:
-            if action.nargs == '*':
-                parser.error(f'Cannot sweep over variable {action.dest} because it is a list.')
-            action.nargs = '+'
+            if action.nargs == "*":
+                parser.error(
+                    f"Cannot sweep over variable {action.dest} because it is a list."
+                )
+            action.nargs = "+"
             action.required = True
 
 
@@ -40,20 +43,23 @@ def __merge_dicts(dict1, dict2):
 
 
 def create_module_args_list(
-        module_argparser: argparse.ArgumentParser,
-        sweep_args: Iterable[str],
-        downstream_args: Sequence[str]):
+    module_argparser: argparse.ArgumentParser,
+    sweep_args: Iterable[str],
+    downstream_args: Sequence[str],
+):
 
     make_args_sweepable(module_argparser, sweep_args)
 
     module_args_with_sweeps = module_argparser.parse_args(downstream_args)
 
     module_args_dict = vars(module_args_with_sweeps)
-    sweeped_args_dict = dict(filter(lambda kv: kv[0] in sweep_args, module_args_dict.items()))
+    sweeped_args_dict = dict(
+        filter(lambda kv: kv[0] in sweep_args, module_args_dict.items())
+    )
 
     module_args_dict_list = [
-        __merge_dicts(module_args_dict, sweeped_args_dict)
-        for sweeped_args_dict in kw_product(sweeped_args_dict)
+        __merge_dicts(module_args_dict, s_dict)
+        for s_dict in kw_product(sweeped_args_dict)
     ]
     return [argparse.Namespace(**args_dict) for args_dict in module_args_dict_list]
 
@@ -62,10 +68,10 @@ def job_description_function(args: argparse.Namespace):
     """Job Description function generates a string description of the sweeped job parameters."""
     tokens = []
     for k, v in vars(args).items():
-        token = f"{k}='{v}'" if isinstance(v, str) else f'{k}={v}'
+        token = f"{k}='{v}'" if isinstance(v, str) else f"{k}={v}"
         if k in sweep_args:
             tokens.append(token)
-    return f'{", ".join(tokens)}' if tokens else '---'
+    return f'{", ".join(tokens)}' if tokens else "---"
 
 
 class UnSupportedPythonModuleError(Exception):
@@ -74,29 +80,34 @@ class UnSupportedPythonModuleError(Exception):
         super().__init__(f"Module '{module_name}' is not supported by submititnow.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('src_file', help='Source file to execute')
+    parser.add_argument("src_file", help="Source file to execute")
 
     experiment_utils.add_submitit_params(parser)
     experiment_utils.add_umiacs_params(parser)
 
     parser.add_argument(
-        '--sweep', nargs='*', default=[], help='List of parameters to sweep over.')
+        "--sweep", nargs="*", default=[], help="List of parameters to sweep over."
+    )
 
     parser.add_argument(
-        '--silent', action='store_true',
-        help='Boolean flag to run experiments in silent mode.')
+        "--silent",
+        action="store_true",
+        help="Boolean flag to run experiments in silent mode.",
+    )
 
     parser.add_argument(
-        '--wait_until',
-        default='submitted', choices=['none', 'submitted', 'running', 'done'],
-        help='Wait until the job is in the specified state before returning.')
+        "--wait_until",
+        default="submitted",
+        choices=["none", "submitted", "running", "done"],
+        help="Wait until the job is in the specified state before returning.",
+    )
 
     args, downstream_args = parser.parse_known_args()
 
     if args.clip and args.scavenger:
-        parser.error('Cannot specify both --clip and --scavenger')
+        parser.error("Cannot specify both --clip and --scavenger")
 
     target_module_name = get_module_name(args.src_file)
     exp_name = args.exp_name or target_module_name
@@ -108,14 +119,17 @@ if __name__ == '__main__':
         raise UnSupportedPythonModuleError(target_module_name) from e
 
     sweep_args = {*args.sweep}
-    module_args_list = create_module_args_list(module_argparser, sweep_args, downstream_args)
+    module_args_list = create_module_args_list(
+        module_argparser, sweep_args, downstream_args
+    )
 
     experiment = experiment_utils.Experiment(
         exp_name,
         job_func=target_module.main,
         job_params=module_args_list,
         job_desc_function=job_description_function,
-        submititnow_dir=args.submititnow_dir)
+        submititnow_dir=args.submititnow_dir,
+    )
 
     slurm_params = experiment_utils.get_slurm_params(args)
 
