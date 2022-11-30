@@ -3,10 +3,10 @@ A "makeshift" toolkit to create and launch Jobs from existing python scripts on 
 
 # Installation
 ```
-pip install -U git+https://github.com/maharshi95/submititnow.git@dev
+pip install -U git+https://github.com/maharshi95/submititnow.git
 ```
 
-# `slaunch`: Launching a python script on SLURM using `submititnow`
+## **`slaunch`**: &nbsp; Launching a python script on SLURM using `submititnow`
 
 Let's say you have a python script `examples/annotate_queries.py` that can be run using following command:
 
@@ -33,11 +33,35 @@ Above command will launch a total of 6 jobs with following configuration:
 
 ![Slaunch Terminal Response](docs/imgs/slaunch_annotate_queries.png)
 
-# **`jt`**: &nbsp; Looking up info on previously launched experiments:
+### __Any constraints on the target python script that we launch?__
+The python script that has to be launch must be in the following format:
+```
+import argparse
+
+# User defined functions and classes
+
+def main(args: argparse.Namespace):
+    # Code goes here
+    pass
+
+
+def add_arguments(parser = None):
+    parser = parser or argparse.ArgumentParser()
+    # Return the parser after populating it with arguments.
+    return parser
+
+
+if __name__ == '__main__':
+    parser = add_arguments()
+    main(parser.parse_args())
+
+```
+
+## **`jt`**: &nbsp; Looking up info on previously launched experiments:
 
 As instructed in the screenshot of the Launch response, user can utilize the `jt` (short of `job-tracker`) command to monitor the job progress.
 
-## **`jt jobs EXP_NAME [EXP_ID]`**
+### **`jt jobs EXP_NAME [EXP_ID]`**
 
 Executing `jt jobs examples.annotate_queries 227720` will give following response:
 
@@ -49,17 +73,16 @@ jt jobs examples.annotate_queries
 ```
 ![jt jobs EXP_NAME Terminal Response](docs/imgs/jt_annotate_queries.png)
 
-## **`jt {err, out} JOB_ID`**
-
-### Looking up stderr and stdout of a Job
+### **`jt {err, out} JOB_ID`**
+__Looking up stderr and stdout of a Job__
 
 Executing `jt out 227720_2` reveals the `stdout` output of the corresponding Job:
 
 ![jt out JOB_ID Terminal Response](docs/imgs/jt_out_job_id.png)
 Similar is case for `jt err 227720_2` which reveals `stderr` logs.
 
-## **`jt sh JOB_ID`**
-### Looking up SLURM SBATCH shell file of a Job
+### **`jt sh JOB_ID`**
+__Looking up SLURM SBATCH shell file of a Job__
 
 submitit tool internally create an SBATCH shell script per experiment to launch the jobs on SLURM cluster. This command helps inspect this `submission.sh` file.
 
@@ -67,7 +90,7 @@ Executing `jt sh 227720_2` reveals the following:
 
 ![jt out JOB_ID Terminal Response](docs/imgs/jt_sh_job_id.png)
 
-## **`jt ls`**
+### **`jt ls`**
 Finally, user can use `jt ls` to simply list the experiments maintains by the `submititnow` tool.
 
 <img src="docs/imgs/jt_ls.png"  width=30%>
