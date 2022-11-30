@@ -34,7 +34,7 @@ Above command will launch a total of 6 jobs with following configuration:
 ![Slaunch Terminal Response](docs/imgs/slaunch_annotate_queries.png)
 
 ### __Any constraints on the target python script that we launch?__
-The python script that has to be launch must be in the following format:
+The target python script must have the following format:
 ```
 import argparse
 
