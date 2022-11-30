@@ -79,7 +79,7 @@ if __name__ == '__main__':
         '--sweep', nargs='*', default=[], help='List of parameters to sweep over.')
 
     parser.add_argument(
-        '--silent', action=argparse.BooleanOptionalAction, default=False,
+        '--silent', action='store_true',
         help='Boolean flag to run experiments in silent mode.')
 
     parser.add_argument(
