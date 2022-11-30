@@ -13,7 +13,7 @@ __`submititnow` provides two command-line tools:__
 * `slaunch` to launch a python script as SLURM job(s).
 * `jt` (job-tracker) to interactively monitor the jobs.
 
-__It also provides a cleaner [`experiment_utils.Experiment`](submititnow/experiment_utils.py#162) API to create, launch and monitor an experiment, or a group of job(s), from python scripts with customized parameter-sweeping configurations.__
+__It also provides a cleaner [`experiment_lib.Experiment`](submititnow/experiment_lib.py#L16) API to create, launch and monitor an experiment, or a group of job(s), from python scripts with customized parameter-sweeping configurations.__
 
 ## `slaunch` : Launching a python script over SLURM
 
@@ -56,7 +56,7 @@ def main(args: argparse.Namespace):
     pass
 
 
-def add_arguments(parser = None):
+def add_arguments(parser = None) -> argparse.ArgumentParser:
     parser = parser or argparse.ArgumentParser()
     # Return the parser after populating it with arguments.
     return parser
@@ -114,3 +114,8 @@ Python 3.8+ is required.
 ```bash
 pip install -U git+https://github.com/maharshi95/submititnow.git
 ```
+
+## **Experiment API:**
+Sometimes `slaunch` command-line tool is not enough. For example, one may want to launch a job with customized parameter-sweep configurations, or have a certain parameter (e.g. `output_filepath`) different for each job in the launch. In such cases, one can use the Experiment API provided by `submititnow` to launch jobs from python scripts and also get the benefits of being able to track them with `jt`.
+
+[examples/launch_demo_script.py](examples/launch_demo_script.py) provides a demo of how to use the `Experiment` API to launch a job with customized parameter-sweep configurations.
