@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setuptools.setup(
     name='submititnow',
     version='0.9.0',
-    author='Mahrshi Gor',
+    author='Maharshi Gor',
     author_email='maharshigor@gmail.com',
     description='A package to make submitit easier to use',
     long_description=long_description,
