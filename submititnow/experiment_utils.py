@@ -37,9 +37,9 @@ def add_submitit_params(parser: argparse.ArgumentParser):
 def add_umiacs_params(parser: argparse.ArgumentParser):
     # TODO(mgor): Make these generalizable to other clusters by creating registerable profile-handlers.
     umiacs_group = parser.add_argument_group('UMIACS parameters')
-    umiacs_group.add_argument('--scavenger', action=argparse.BooleanOptionalAction,
+    umiacs_group.add_argument('--scavenger', action='store_true',
                               help='Boolean flag to run experiments in scavenger mode')
-    umiacs_group.add_argument('--clip', action=argparse.BooleanOptionalAction,
+    umiacs_group.add_argument('--clip', action='store_true',
                               help='Boolean flag to run experiments using clip account')
 
 
@@ -97,6 +97,7 @@ def display_job_submission_status_on_console(exp: 'Experiment', wait_until: str)
                 job_state = 'UNKNOWN'
                 nodelist = f'[dark_orange]UNKNOWN'
             else:
+                print(jobs_info)
                 job_state = jobs_info['State']
                 nodelist = jobs_info['NodeList']
 
