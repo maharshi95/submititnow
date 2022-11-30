@@ -1,6 +1,6 @@
 # :rocket: Submit it Now! :rocket:
 
-&nbsp;![License](https://img.shields.io/github/license/maharshi95/submititnow)
+&nbsp;[![License](https://img.shields.io/github/license/maharshi95/submititnow)](/LICENSE)
 &nbsp;[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 &nbsp;[![Supported Python Versions](https://img.shields.io/badge/python-3.8+-blue)](https://pypi.org/project/rich/)
 &nbsp;[![Twitter Follow](https://img.shields.io/twitter/follow/maharshigor.svg?style=social)](https://twitter.com/maharshigor)
