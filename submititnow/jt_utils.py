@@ -12,7 +12,8 @@ experiments_root = submititnow_root / 'experiments'
 
 
 def get_running_job_ids():
-    squeue_rows = os.popen('squeue -u mgor').read().splitlines()[1:]
+    username = os.environ['USER']
+    squeue_rows = os.popen(f'squeue -u {username}').read().splitlines()[1:]
     return list(map(lambda x: x.strip().split()[0].split('_')[0], squeue_rows))
 
 
