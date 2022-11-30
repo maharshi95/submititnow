@@ -20,5 +20,5 @@ setuptools.setup(
     scripts=['bin/jt', 'bin/slaunch'],
     install_requires=['submitit', 'simple_colors',
                       'pandas', 'typer[all]', 'rich-cli'],
-    python_requires='>=3.9',
+    python_requires='>=3.7',
 )
