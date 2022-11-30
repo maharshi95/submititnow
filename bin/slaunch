@@ -1,11 +1,12 @@
 #!/usr/bin/env python
-from submititnow import experiment_utils
-from typing import Any, Mapping, Iterable, Sequence
-import itertools
-import importlib
-import argparse
-import os
-import sys
+
+import os, sys, argparse, importlib, itertools
+from typing import Any, Mapping, Iterable, Sequence, Set
+
+from submititnow import options
+from submititnow import experiment_lib
+from submititnow.umiacs import handlers
+
 
 sys.path.insert(0, os.getcwd())
 
@@ -34,6 +35,7 @@ def make_args_sweepable(parser: argparse.ArgumentParser, sweep_args: Iterable[st
                 )
             action.nargs = "+"
             action.required = True
+    return parser
 
 
 def __merge_dicts(dict1, dict2):
@@ -53,13 +55,13 @@ def create_module_args_list(
     module_args_with_sweeps = module_argparser.parse_args(downstream_args)
 
     module_args_dict = vars(module_args_with_sweeps)
-    sweeped_args_dict = dict(
+    sweep_args_dict = dict(
         filter(lambda kv: kv[0] in sweep_args, module_args_dict.items())
     )
 
     module_args_dict_list = [
         __merge_dicts(module_args_dict, s_dict)
-        for s_dict in kw_product(sweeped_args_dict)
+        for s_dict in kw_product(sweep_args_dict)
     ]
     return [argparse.Namespace(**args_dict) for args_dict in module_args_dict_list]
 
@@ -75,17 +77,20 @@ def job_description_function(args: argparse.Namespace):
 
 
 class UnSupportedPythonModuleError(Exception):
-    def __init__(self, module_name: str):
-        # TODO: Add a more meaningful error message.
-        super().__init__(f"Module '{module_name}' is not supported by submititnow.")
+    def __init__(self, module_name: str, missing_attr: str):
+        super().__init__(
+            f"Module '{module_name}' is not supported by submititnow. '{missing_attr}' is missing.\n"
+            f"Target script must have two functions: \n\t* 'main(args: argparser.Namespace)'"
+            f"\n\t* 'add_arguments(parser = None) -> argparse.ArgumentParser'."
+        )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("src_file", help="Source file to execute")
 
-    experiment_utils.add_submitit_params(parser)
-    experiment_utils.add_umiacs_params(parser)
+    options.add_submititnow_arguments(parser)
+    options.add_slurm_arguments(parser)
 
     parser.add_argument(
         "--sweep", nargs="*", default=[], help="List of parameters to sweep over."
@@ -106,9 +111,6 @@ if __name__ == "__main__":
 
     args, downstream_args = parser.parse_known_args()
 
-    if args.clip and args.scavenger:
-        parser.error("Cannot specify both --clip and --scavenger")
-
     target_module_name = get_module_name(args.src_file)
     exp_name = args.exp_name or target_module_name
     target_module = importlib.import_module(target_module_name)
@@ -116,21 +118,28 @@ if __name__ == "__main__":
     try:
         module_argparser = target_module.add_arguments()
     except AttributeError as e:
-        raise UnSupportedPythonModuleError(target_module_name) from e
+        raise UnSupportedPythonModuleError(target_module_name, "add_arguments") from e
+
+    try:
+        module_main_func = target_module.main
+    except AttributeError as e:
+        raise UnSupportedPythonModuleError(target_module_name, "main") from e
 
     sweep_args = {*args.sweep}
     module_args_list = create_module_args_list(
         module_argparser, sweep_args, downstream_args
     )
 
-    experiment = experiment_utils.Experiment(
+    experiment = experiment_lib.Experiment(
         exp_name,
-        job_func=target_module.main,
+        job_func=module_main_func,
         job_params=module_args_list,
         job_desc_function=job_description_function,
         submititnow_dir=args.submititnow_dir,
     )
+    experiment.register_profile_handler("clip", handlers.clip_profile_handler)
+    experiment.register_profile_handler("scavenger", handlers.scavenger_profile_handler)
 
-    slurm_params = experiment_utils.get_slurm_params(args)
+    slurm_params = options.get_slurm_params(args)
 
     experiment.launch(slurm_params, verbose=not args.silent, wait_until=args.wait_until)

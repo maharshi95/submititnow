@@ -1,13 +1,17 @@
 import os
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional, Dict
 import pandas as pd
 
-from submititnow.experiment_utils import get_default_submititnow_dir
 
-submititnow_root = get_default_submititnow_dir()
+__FALLBACK_SUBMITITNOW_DIR = os.path.expanduser("~/.submititnow")
 
-experiments_root = submititnow_root / "experiments"
+SUBMITITNOW_ROOT_DIR = Path(
+    os.environ.get("SUBMITITNOW_DIR", __FALLBACK_SUBMITITNOW_DIR)
+)
+
+EXPERIMENTS_ROOT_DIR = SUBMITITNOW_ROOT_DIR / "experiments"
 
 
 def get_running_job_ids():
@@ -27,7 +31,7 @@ def list_files(path):
 def find_job_files(job_id, task_id):
     files = {}
     job_id_tag = f"{job_id}_{task_id}" if task_id is not None else str(job_id)
-    for path in list_files(experiments_root):
+    for path in list_files(EXPERIMENTS_ROOT_DIR):
         if path.endswith(".sh") and str(job_id) in path:
             files["sh"] = path
         elif job_id_tag in path:
@@ -112,7 +116,7 @@ class JTExp:
 
     @property
     def exp_dir(self):
-        return experiments_root / self.exp_name
+        return EXPERIMENTS_ROOT_DIR / self.exp_name
 
     @property
     def tracker_file(self):
@@ -129,29 +133,6 @@ class JTExp:
             and self.logs_dir.exists()
         )
 
-    def get_job_ids(self):
-        return list(
-            map(
-                lambda x: x.strip().split()[0].split("_")[0],
-                os.popen(f"squeue -u mgor | grep {self.exp_name}")
-                .read()
-                .splitlines()[1:],
-            )
-        )
-
-    def get_job_states(self):
-        job_ids = self.get_job_ids()
-        return list(map(load_job_states, job_ids))
-
-    def get_job_states_df(self):
-        job_ids = self.get_job_ids()
-        job_states = self.get_job_states()
-        return pd.DataFrame({"job_id": job_ids, "state": job_states})
-
-    def show_job_states(self):
-        df = self.get_job_states_df()
-        print(df)
-
     def load_csv(self):
         col_names = ["Date & Time", "Job ID", "Job Description", "Exp Info"]
         df = pd.read_csv(
@@ -160,6 +141,16 @@ class JTExp:
         df["Exp Info"] = df["Exp Info"].fillna("Not Found in tracker")
         job_series = df["Job ID"].map(lambda x: int(str(x).split("_")[0]))
         df.insert(0, "Exp ID", job_series)
+        return df
+
+    def prepare_job_states_df(self, max_rows: int = 20, exp_id: Optional[int] = None):
+        df = self.load_csv()
+        df = df[df["Exp ID"] == exp_id] if exp_id else df
+        df = df.sort_values(by=["Exp ID"], ascending=False)
+        if max_rows != -1:
+            df = df.head(max_rows)
+        status_series = df["Job ID"].apply(load_job_states)
+        df.insert(2, "Job Status", status_series)
         return df
 
 

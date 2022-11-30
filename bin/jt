@@ -10,7 +10,8 @@ from rich import print as rich_print
 from rich.console import Console
 from rich.table import Table
 
-from submititnow import jt_utils
+from submititnow.jt import utils
+from submititnow import cli
 import typer
 
 
@@ -32,15 +33,6 @@ CUSTOM_HORIZONTALS: box.Box = box.Box(
 )
 
 
-def show_file_content(filepath: str):
-    with open(filepath) as fp:
-        text = fp.read().replace(']\n ', ']\r') # Handle tqdm progress bars
-        for line in text.split('\n'):
-            if '\r' in line:
-                line = line[line.rindex('\r') + 1:]
-            rich_print(line)
-
-
 def df_to_table(
     df: pd.DataFrame,
     rich_table: Table,
@@ -48,10 +40,10 @@ def df_to_table(
     index_name: Optional[str] = None,
 ) -> Table:
     """Convert a pandas.DataFrame obj into a rich.Table obj.
-    
+
     Most of the logic taken from:
     https://gist.github.com/neelabalan/33ab34cf65b43e305c3f12ec6db05938#file-df_to_table-py-L12
-    
+
     Args:
         pandas_dataframe (DataFrame): A Pandas DataFrame to be converted to a rich Table.
         rich_table (Table): A rich Table that should be populated by the DataFrame values.
@@ -65,77 +57,73 @@ def df_to_table(
         rich_table.add_column(index_name)
 
     styles = {
-        'Exp ID': 'bold dark_blue',
-        'Job ID': 'bold bright_blue',
-        'Job Description': 'rosy_brown',
-        'Exp Info': 'rosy_brown',
+        "Exp ID": "bold dark_blue",
+        "Job ID": "bold bright_blue",
+        "Job Description": "rosy_brown",
+        "Exp Info": "rosy_brown",
     }
 
     for column in df.columns:
         rich_table.add_column(str(column), style=styles.get(column, None))
-    exp_indices = df.columns.get_indexer(['Exp ID', 'Exp Info'])
+    exp_indices = df.columns.get_indexer(["Exp ID", "Exp Info"])
     df_rows = [row for _, row in df.iterrows()]
     for index, df_row in enumerate(df_rows):
         row = [str(index)] if show_index else []
         row += [str(x) for x in df_row]
         if index > 0:
-            if df_rows[index]['Exp ID'] != df_rows[index - 1]['Exp ID']:
+            if df_rows[index]["Exp ID"] != df_rows[index - 1]["Exp ID"]:
                 rich_table.add_section()
             else:
                 for idx in exp_indices:
-                    row[idx] = ''
+                    row[idx] = ""
         rich_table.add_row(*row)
 
     return rich_table
 
 
 def stylish_job_status(msg: str):
-    if msg.startswith('PENDING'):
-        msg_style = 'bold yellow'
-    elif msg.startswith('RUNNING'):
-        msg_style = 'bold bright_green'
-    elif msg.startswith('FAILED: Out Of Memory'):
-        msg_style = 'bold dark_red'
-    elif msg.startswith('FAILED: Triggered'):
-        msg_style = 'bold red3'
-    elif msg.startswith('CANCELLED'):
-        msg_style = 'bold indian_red1'
-    elif msg.startswith('COMPLETED'):
-        msg_style = 'bold green4'
+    if msg.startswith("PENDING"):
+        msg_style = "bold yellow"
+    elif msg.startswith("RUNNING"):
+        msg_style = "bold bright_green"
+    elif msg.startswith("FAILED: Out Of Memory"):
+        msg_style = "bold dark_red"
+    elif msg.startswith("FAILED: Triggered"):
+        msg_style = "bold red3"
+    elif msg.startswith("CANCELLED"):
+        msg_style = "bold indian_red1"
+    elif msg.startswith("COMPLETED"):
+        msg_style = "bold green4"
     else:
-        msg_style = 'bold medium_violet_red'
+        msg_style = "bold medium_violet_red"
 
-    return f'[{msg_style}]{msg}[/{msg_style}]'
+    return f"[{msg_style}]{msg}[/{msg_style}]"
 
 
 @app.command(name="jobs", help="Show the status of all jobs within an experiment.")
 def display_jobs_info(
-        exp_name: str = typer.Argument(..., help="The name of the experiment."),
-        exp_id: Optional[int] = typer.Argument(None, help="The experiment ID."),
-        max_rows: int = typer.Option(default=20, help="Max number of rows to display in reverse chronological order."),):
-    exp = jt_utils.JTExp(exp_name)
-    df = exp.load_csv()
-
-    df = df[df['Exp ID'] == exp_id] if exp_id else df
-
-    df = df.sort_values(by=['Exp ID'], ascending=False)
-
-    if max_rows != -1:
-        df = df.head(max_rows)
-
-    status_series = df['Job ID'].apply(jt_utils.load_job_states).apply(stylish_job_status)
-    df.insert(2, 'Status', status_series)
+    exp_name: str = typer.Argument(..., help="The name of the experiment."),
+    exp_id: Optional[int] = typer.Argument(None, help="The experiment ID."),
+    max_rows: int = typer.Option(
+        default=20, help="Max number of rows to display in reverse chronological order."
+    ),
+):
+    exp = utils.JTExp(exp_name)
+    df = exp.prepare_job_states_df(max_rows, exp_id)
+    df["Job Status"] = df["Job Status"].apply(stylish_job_status)
 
     # Initiate a Table instance to be modified
-    if not exp_id:
-        table_title = f":test_tube: [bold yellow]Experiment Dashboard for [hot_pink]{exp_name}[/hot_pink] jobs"
-    else:
-        table_title = f":test_tube: [bold yellow]Experiment Dashboard for [hot_pink]{exp_name}[/hot_pink] job [hot_pink]{exp_id}"
+    table_title = f":test_tube: [bold yellow]Experiment Dashboard for [hot_pink]{exp_name}[/hot_pink]"
+    if exp_id:
+        table_title = (
+            f"{table_title} [bold yellow]with ID [hot_pink]{exp_id}[/hot_pink]"
+        )
     table = Table(
-        show_header=True, 
-        header_style="bold bright_white", 
-        highlight=True, 
-        title=table_title)
+        show_header=True,
+        header_style="bold bright_white",
+        highlight=True,
+        title=table_title,
+    )
 
     # Modify the table instance to have the data from the DataFrame
     table = df_to_table(df, table, show_index=False)
@@ -147,29 +135,31 @@ def display_jobs_info(
 
 @app.command(name="err", help="Show the stderr log of a job")
 def show_stderr(job_id: str):
-    filepath = jt_utils.get_job_filepath(job_id, 'err')
-    show_file_content(filepath)
+    filepath = utils.get_job_filepath(job_id, "err")
+    cli.show_file_content(filepath)
 
 
 @app.command(name="out", help="Show the stdout log of a job")
 def show_stdout(job_id: str):
-    filepath = jt_utils.get_job_filepath(job_id, 'out')
-    show_file_content(filepath)
+    filepath = utils.get_job_filepath(job_id, "out")
+    cli.show_file_content(filepath)
 
 
 @app.command(name="sh", help="Show the SLURM sbatch shell script of a job")
 def show_submission_sh(job_id: str):
-    filepath = jt_utils.get_job_filepath(job_id, 'sh')
-    show_file_content(filepath)
+    filepath = utils.get_job_filepath(job_id, "sh")
+    cli.show_file_content(filepath)
 
 
 @app.command(name="ls", help="List all experiments.")
 def list_experiments():
 
-    exp_names = os.listdir(jt_utils.experiments_root)
-    exp_names = filter(lambda x: jt_utils.JTExp(x).exists(), exp_names)
+    exp_names = os.listdir(utils.EXPERIMENTS_ROOT_DIR)
+    exp_names = filter(lambda x: utils.JTExp(x).exists(), exp_names)
     table = Table(show_header=True, header_style="bold magenta", highlight=True)
-    table.add_column(":test_tube: [bold yellow]Experiments", justify="center", style="turquoise2")
+    table.add_column(
+        ":test_tube: [bold yellow]Experiments", justify="center", style="turquoise2"
+    )
     for exp_name in exp_names:
         table.add_row(exp_name)
     table.box = box.HEAVY_EDGE
