@@ -33,6 +33,12 @@ def make_args_sweepable(parser: argparse.ArgumentParser, sweep_args: Iterable[st
             action.required = True
 
 
+def __merge_dicts(dict1, dict2):
+    new_dict = dict(dict1)
+    new_dict.update(dict2)
+    return new_dict
+
+
 def create_module_args_list(
         module_argparser: argparse.ArgumentParser,
         sweep_args: Iterable[str],
@@ -46,7 +52,7 @@ def create_module_args_list(
     sweeped_args_dict = dict(filter(lambda kv: kv[0] in sweep_args, module_args_dict.items()))
 
     module_args_dict_list = [
-        module_args_dict | sweeped_args_dict
+        __merge_dicts(module_args_dict, sweeped_args_dict)
         for sweeped_args_dict in kw_product(sweeped_args_dict)
     ]
     return [argparse.Namespace(**args_dict) for args_dict in module_args_dict_list]
