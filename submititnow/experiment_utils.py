@@ -97,7 +97,6 @@ def display_job_submission_status_on_console(exp: 'Experiment', wait_until: str)
                 job_state = 'UNKNOWN'
                 nodelist = f'[dark_orange]UNKNOWN'
             else:
-                print(jobs_info)
                 job_state = jobs_info['State']
                 nodelist = jobs_info['NodeList']
 
