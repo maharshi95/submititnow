@@ -1,7 +1,7 @@
 import os
 import glob
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Dict
 import pandas as pd
 
 from submititnow.experiment_utils import get_default_submititnow_dir
@@ -40,7 +40,7 @@ def find_job_files(job_id, task_id):
     return files
 
 
-def get_job_filepaths(job_task: str) -> dict[str, str]:
+def get_job_filepaths(job_task: str) -> Dict[str, str]:
     if '_' in job_task:
         job_id, task_id = job_task.split('_')
     else:

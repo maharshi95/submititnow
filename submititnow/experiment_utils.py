@@ -3,7 +3,7 @@ import os
 import time
 import datetime as dt
 from pathlib import Path
-from typing import List, Iterable, Optional, Callable, Any
+from typing import List, Iterable, Optional, Callable, Any, Dict
 
 from rich import print as rich_print
 from rich.live import Live
@@ -187,7 +187,7 @@ class Experiment:
     def logs_dir(self):
         return self.exp_dir / 'submitit_logs'
 
-    def launch(self, slurm_params: dict[str, Any], *, verbose: bool = True, wait_until: str = 'submitted'):
+    def launch(self, slurm_params: Dict[str, Any], *, verbose: bool = True, wait_until: str = 'submitted'):
         """Launches the experiment on the cluster. If `wait_until` is None, the function returns immediately.
 
         Args:
