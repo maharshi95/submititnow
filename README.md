@@ -122,3 +122,7 @@ Sometimes `slaunch` command-line tool is not enough. For example, one may want t
 ```bash
 python examples/launch_demo_script.py
 ```
+## **Experiment API:**
+Sometimes `slaunch` command-line tool is not enough. For example, one may want to launch a job with customized parameter-sweep configurations, or have a certain parameter (e.g. `output_filepath`) different for each job in the launch. In such cases, one can use the Experiment API provided by `submititnow` to launch jobs from python scripts and also get the benefits of being able to track them with `jt`.
+
+[examples/launch_demo_script.py](examples/launch_demo_script.py) provides a demo of how to use the `Experiment` API to launch a job with customized parameter-sweep configurations.
