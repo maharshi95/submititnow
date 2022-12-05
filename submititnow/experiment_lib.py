@@ -6,6 +6,7 @@ from typing import List, Iterable, Optional, Callable, Any, Dict
 import submitit
 
 from submititnow import cli
+from submititnow import options
 from submititnow.jt import utils
 
 
@@ -100,8 +101,25 @@ class Experiment:
                     f"Profile {slurm_profile} is not registered. "
                     f"Please register it using `experiment.register_profile_handler`, or use a valid profile. [Valid profiles: {list(self.profile_handlers.keys())}]"
                 )
+        slurm_main_params = {
+            k: v
+            for k, v in slurm_params.items()
+            if k in options.valid_submitit_slurm_arguments and v is not None
+        }
+
+        slurm_additional_params = {
+            options.slurm_args_unsupported_by_submitit[k]: v
+            for k, v in slurm_params.items()
+            if k in options.slurm_args_unsupported_by_submitit and v is not None
+        }
+
+        slurm_params = {**slurm_main_params}
+
+        if slurm_additional_params:
+            slurm_params["slurm_additional_parameters"] = slurm_additional_params
 
         self.executor = submitit.AutoExecutor(self.logs_dir)
+
         self.executor.update_parameters(**slurm_params)
 
         jobs = self.executor.map_array(self.job_func, self.job_params)
@@ -128,7 +146,7 @@ class Experiment:
 
     def _update_tracker(self, job, job_desc):
         job_start_time_str = str(_job_start_time(job)).split(".")[0]
-
+        self.tracker_file.parent.mkdir(parents=True, exist_ok=True)
         with open(self.tracker_file, "a") as fp:
             row_items = [
                 job_start_time_str,

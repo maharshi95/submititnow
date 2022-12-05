@@ -1,24 +1,55 @@
 import argparse
 from typing import Dict, Any
 
+all_slurm_arguments = {
+    "profile",
+    "account",
+    "partition",
+    "qos",
+    "job_name",
+    "gres",
+    "mem",
+    "mem_per_gpu",
+    "mem_per_cpu" "gres",
+    "time",
+    "nodelist",
+    "exclude",
+}
+
+slurm_args_unsupported_by_submitit = {
+    "slurm_nodelist": "nodelist",
+}
+
+
+all_submitit_slurm_arguments = {arg: (f"slurm_" + arg) for arg in all_slurm_arguments}
+
+valid_submitit_slurm_arguments = {
+    arg
+    for arg in all_slurm_arguments
+    if arg not in slurm_args_unsupported_by_submitit.values()
+}
+
 
 def add_slurm_arguments(parser: argparse.ArgumentParser):
     slurm_group = parser.add_argument_group("SLURM parameters")
-    slurm_group.add_argument(
-        "--slurm_profile", default=None, help="SubmititNow profile for SLURM."
-    )
-    slurm_group.add_argument("--slurm_account", default=None, help="SLURM account")
-    slurm_group.add_argument("--slurm_partition", default=None, help="SLURM partition")
-    slurm_group.add_argument("--slurm_qos", default=None, help="SLURM qos")
-    slurm_group.add_argument(
-        "--slurm_mem", default=None, help="SLURM memory requirement"
-    )
-    slurm_group.add_argument(
-        "--slurm_gres", default=None, help="SLURM GPU Resource requirement"
-    )
-    slurm_group.add_argument(
-        "--slurm_time", default=None, help="SLURM time requirement"
-    )
+
+    for arg_name, slurm_arg_name in all_submitit_slurm_arguments.items():
+
+        arg_group = slurm_group.add_mutually_exclusive_group()
+        arg_group.add_argument(
+            f"--{arg_name}",
+            default=None,
+            dest=slurm_arg_name,
+            help=f"SLURM {arg_name}",
+        )
+
+        arg_group.add_argument(
+            f"--slurm_{arg_name}",
+            default=None,
+            dest=slurm_arg_name,
+            help=f"SLURM {arg_name}",
+        )
+
     return parser
 
 
@@ -32,4 +63,5 @@ def add_submititnow_arguments(parser: argparse.ArgumentParser):
 
 
 def get_slurm_params(args: argparse.Namespace) -> Dict[str, Any]:
-    return {k: v for k, v in vars(args).items() if k.startswith("slurm_")}
+    slurm_param_names = set(all_submitit_slurm_arguments.values())
+    return {k: v for k, v in vars(args).items() if k in slurm_param_names}
