@@ -3,9 +3,11 @@ import setuptools
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
+packages = filter(lambda x: x.startswith("submititnow"), setuptools.find_packages())
+
 setuptools.setup(
     name="submititnow",
-    version="0.9.0",
+    version="0.9.1",
     author="Maharshi Gor",
     author_email="maharshigor@gmail.com",
     description="A package to make submitit easier to use",
@@ -16,7 +18,7 @@ setuptools.setup(
         "Bug Tracker": "https://github.com/maharshi95/submititnow/issues",
     },
     license="MIT",
-    packages=["submititnow"],
+    packages=list(packages),
     scripts=["bin/jt", "bin/slaunch"],
     install_requires=[
         "submitit==1.4.5",

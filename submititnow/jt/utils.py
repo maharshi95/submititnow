@@ -5,11 +5,11 @@ from typing import Optional, Dict
 import pandas as pd
 
 
-__FALLBACK_SUBMITITNOW_DIR = os.path.expanduser("~/.submititnow")
+__FALLBACK_SUBMITITNOW_DIR = "~/.submititnow"
 
 SUBMITITNOW_ROOT_DIR = Path(
     os.environ.get("SUBMITITNOW_DIR", __FALLBACK_SUBMITITNOW_DIR)
-)
+).expanduser()
 
 EXPERIMENTS_ROOT_DIR = SUBMITITNOW_ROOT_DIR / "experiments"
 
