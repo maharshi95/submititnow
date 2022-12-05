@@ -128,7 +128,7 @@ class Experiment:
 
     def _update_tracker(self, job, job_desc):
         job_start_time_str = str(_job_start_time(job)).split(".")[0]
-
+        self.tracker_file.parent.mkdir(parents=True, exist_ok=True)
         with open(self.tracker_file, "a") as fp:
             row_items = [
                 job_start_time_str,
