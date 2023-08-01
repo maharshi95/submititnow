@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+import io
 import time
 
 from rich import print as rich_print
@@ -13,12 +13,15 @@ if TYPE_CHECKING:
 
 
 def show_file_content(filepath: str):
-    with open(filepath) as fp:
-        text = fp.read().replace("]\n ", "]\r")  # Handle tqdm progress bars
+    rich_print("[bold bright_yellow]Reading file:[/bold bright_yellow] [bold cyan]{}[/bold cyan]\n".format(filepath))
+    with open(filepath, "r", newline='') as fp:
+        text = fp.read()
         for line in text.split("\n"):
-            if "\r" in line:
-                line = line[line.rindex("\r") + 1 :]
-            rich_print(line)
+            line_buffer = io.StringIO()
+            for chunks in line.split("\r"):
+                line_buffer.seek(0)
+                line_buffer.write(chunks)
+            rich_print(line_buffer.getvalue())
 
 
 def _generate_console_table(exp: Experiment):
