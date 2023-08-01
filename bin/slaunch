@@ -49,7 +49,6 @@ def create_module_args_list(
     sweep_args: Iterable[str],
     downstream_args: Sequence[str],
 ):
-
     make_args_sweepable(module_argparser, sweep_args)
 
     module_args_with_sweeps = module_argparser.parse_args(downstream_args)
@@ -79,9 +78,10 @@ def job_description_function(args: argparse.Namespace):
 class UnSupportedPythonModuleError(Exception):
     def __init__(self, module_name: str, missing_attr: str):
         super().__init__(
-            f"Module '{module_name}' is not supported by submititnow. '{missing_attr}' is missing.\n"
-            f"Target script must have two functions: \n\t* 'main(args: argparser.Namespace)'"
-            f"\n\t* 'add_arguments(parser = None) -> argparse.ArgumentParser'."
+            f"Module '{module_name}' is not supported by submititnow. '{missing_attr}'"
+            " is missing.\nTarget script must have two functions: \n\t* 'main(args:"
+            " argparser.Namespace)'\n\t* 'add_arguments(parser = None) ->"
+            " argparse.ArgumentParser'."
         )
 
 
