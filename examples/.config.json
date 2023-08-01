@@ -1,0 +1,4 @@
+{
+    "slurm_profile": "clip",
+    "slurm_gres": "gpu:1"
+}

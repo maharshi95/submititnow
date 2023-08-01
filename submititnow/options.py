@@ -1,4 +1,5 @@
 import argparse
+import json
 from typing import Dict, Any
 
 
@@ -23,6 +24,12 @@ class SlurmAdditionalArgAction(argparse.Action):
 
 def add_slurm_arguments(parser: argparse.ArgumentParser):
     slurm_group = parser.add_argument_group("SLURM parameters")
+    slurm_group.add_argument(
+        "--config",
+        default=None,
+        help="SubmititNow config file for SLURM.",
+        dest="slurm_config",
+    )
     slurm_group.add_argument(
         "--profile",
         default=None,
@@ -110,4 +117,12 @@ def add_submititnow_arguments(parser: argparse.ArgumentParser):
 
 
 def get_slurm_params(args: argparse.Namespace) -> Dict[str, Any]:
-    return {k: v for k, v in vars(args).items() if k.startswith("slurm_")}
+    slurm_args = {
+        k: v for k, v in vars(args).items() if k.startswith("slurm_") and v is not None
+    }
+    if slurm_args.get("slurm_config") is not None:
+        config_filename = slurm_args.pop("slurm_config")
+        with open(config_filename, "r") as f:
+            default_args = json.load(f)
+        slurm_args = {**default_args, **slurm_args}
+    return slurm_args

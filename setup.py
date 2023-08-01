@@ -7,7 +7,7 @@ packages = filter(lambda x: x.startswith("submititnow"), setuptools.find_package
 
 setuptools.setup(
     name="submititnow",
-    version="0.9.2",
+    version="0.9.3",
     author="Maharshi Gor",
     author_email="maharshigor@gmail.com",
     description="A package to make submitit easier to use",
