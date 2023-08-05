@@ -154,6 +154,7 @@ def list_experiments():
 
     exp_names = os.listdir(utils.EXPERIMENTS_ROOT_DIR)
     exp_names = filter(lambda x: utils.JTExp(x).exists(), exp_names)
+    exp_names = sorted(exp_names, key=lambda x: os.path.getmtime(utils.JTExp(x).exp_dir), reverse=True)
     table = Table(show_header=True, header_style="bold magenta", highlight=True)
     table.add_column(
         ":test_tube: [bold yellow]Experiments", justify="center", style="turquoise2"
