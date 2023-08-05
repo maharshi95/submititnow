@@ -7,7 +7,7 @@ packages = filter(lambda x: x.startswith("submititnow"), setuptools.find_package
 
 setuptools.setup(
     name="submititnow",
-    version="0.9.1",
+    version="0.9.3",
     author="Maharshi Gor",
     author_email="maharshigor@gmail.com",
     description="A package to make submitit easier to use",
@@ -26,6 +26,7 @@ setuptools.setup(
         "typer[all]>=0.7.0",
         "rich-cli>=1.8.0",
         "rich>=12.6.0",
+        "tqdm>=4.0.0",
     ],
     python_requires=">=3.8",
 )
