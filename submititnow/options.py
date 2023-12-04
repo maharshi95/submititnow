@@ -5,14 +5,15 @@ from typing import Dict, Any
 
 class SlurmAdditionalArgAction(argparse.Action):
     """This class is used to parse additional arguments for SLURM.
-    
+
     Example:
         The CLI SLURM argument `--nodelist` is part of the `slurm_additional_parameters`
-        dict for submitit. This ArgAction class is used to parse the `--nodelist` 
+        dict for submitit. This ArgAction class is used to parse the `--nodelist`
         argument and add it to the `slurm_additional_parameters` dict, which is the
         destination variable name.
-    
+
     """
+
     def __init__(self, check_func, *args, **kwargs):
         """
         argparse custom action.
@@ -130,8 +131,8 @@ def load_slurm_config(config_filename: str) -> Dict[str, Any]:
         config = json.load(f)
     return {f"slurm_{k.replace('-', '_')}": v for k, v in config.items()}
 
+
 def get_slurm_params(args: argparse.Namespace) -> Dict[str, Any]:
-    
     # Grabs all SLURM arguments from the parser that are explicitly set to a value
     slurm_args = {
         k: v for k, v in vars(args).items() if k.startswith("slurm_") and v is not None

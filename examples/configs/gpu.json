@@ -1,5 +1,7 @@
 {
-    "profile": "scavenger",
+    "account": "scavenger",
+    "partition": "scavenger",
+    "qos": "scavenger",
     "gres": "gpu:rtxa4000:1",
     "mem": "16G"
 }

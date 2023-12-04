@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 
-import os, sys, argparse, importlib, itertools
-from typing import Any, Mapping, Iterable, Sequence, Set
+import os
+import sys
+import argparse
+import importlib
+import itertools
+from typing import Any, Mapping, Iterable, Sequence
 
 from submititnow import options
 from submititnow import experiment_lib
 from submititnow.umiacs import handlers
-
 
 sys.path.insert(0, os.getcwd())
 
@@ -139,8 +142,6 @@ if __name__ == "__main__":
     )
     for name, handler in handlers.profile_handlers.items():
         experiment.register_profile_handler(name, handler)
-    
-    
 
     slurm_params = options.get_slurm_params(args)
 
