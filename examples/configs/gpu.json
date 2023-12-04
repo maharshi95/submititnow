@@ -1,0 +1,5 @@
+{
+    "profile": "scavenger",
+    "gres": "gpu:rtxa4000:1",
+    "mem": "16G"
+}

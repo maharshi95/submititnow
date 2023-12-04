@@ -1,0 +1,5 @@
+{
+    "profile": "clip",
+    "gres": "gpu:1",
+    "mem": "4G"
+}

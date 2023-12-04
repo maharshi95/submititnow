@@ -137,8 +137,10 @@ if __name__ == "__main__":
         job_desc_function=job_description_function,
         submititnow_dir=args.submititnow_dir,
     )
-    experiment.register_profile_handler("clip", handlers.clip_profile_handler)
-    experiment.register_profile_handler("scavenger", handlers.scavenger_profile_handler)
+    for name, handler in handlers.profile_handlers.items():
+        experiment.register_profile_handler(name, handler)
+    
+    
 
     slurm_params = options.get_slurm_params(args)
 

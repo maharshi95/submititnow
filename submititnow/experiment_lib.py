@@ -22,7 +22,6 @@ class Experiment:
         job_desc_function: Optional[Callable] = None,
         submititnow_dir: Optional[str] = None,
     ):
-
         self.submititnow_dir = (
             Path(submititnow_dir) if submititnow_dir else utils.SUBMITITNOW_ROOT_DIR
         )
@@ -90,7 +89,6 @@ class Experiment:
             )
 
         if slurm_profile := slurm_params.get("slurm_profile"):
-
             del slurm_params["slurm_profile"]
 
             if slurm_profile in self.profile_handlers:

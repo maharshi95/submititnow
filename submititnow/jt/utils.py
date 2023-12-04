@@ -3,7 +3,7 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional, Dict
 import pandas as pd
-
+import scandir
 
 __FALLBACK_SUBMITITNOW_DIR = "~/.submititnow"
 
@@ -23,7 +23,7 @@ def get_running_job_ids():
 def list_files(path):
     files = []
     # r=root, d=directories, f = files
-    for r, d, f in os.walk(path):
+    for r, d, f in scandir.walk(str(path)):
         for file in f:
             yield os.path.join(r, file)
 
@@ -79,7 +79,7 @@ def load_job_states(job_id):
     with open(err_filepath) as fp:
         err_lines = list(
             filter(
-                lambda l: l.startswith("srun: ") or l.startswith("slurmstepd: "),
+                lambda l: l.startswith("srun: ") or "slurmstepd: " in l,
                 fp.readlines(),
             )
         )
