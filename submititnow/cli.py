@@ -13,8 +13,12 @@ if TYPE_CHECKING:
 
 
 def show_file_content(filepath: str):
-    rich_print("[bold bright_yellow]Reading file:[/bold bright_yellow] [bold cyan]{}[/bold cyan]\n".format(filepath))
-    with open(filepath, "r", newline='') as fp:
+    rich_print(
+        "[bold bright_yellow]Reading file:[/bold bright_yellow] [bold cyan]{}[/bold cyan]\n".format(
+            filepath
+        )
+    )
+    with open(filepath, "r", newline="") as fp:
         text = fp.read()
         for line in text.split("\n"):
             line_buffer = io.StringIO()
@@ -81,7 +85,7 @@ def _display_job_submission_status_on_console(exp: Experiment, wait_until: str):
     rich_print(f"\t:ledger: "
                f"Submitit logs      : {exp.logs_dir}\n")
 
-    rich_print(f"[bold yellow]  Execute the following command to monitor the jobs:[/bold yellow]\n")
+    rich_print("[bold yellow]  Execute the following command to monitor the jobs:[/bold yellow]\n")
     rich_print(f"\t[bold bright_white]jt jobs {exp.exp_name} {exp.exp_id}[/bold bright_white]\n")
     # fmt: on
 

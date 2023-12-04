@@ -1,0 +1,46 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import json
+import subprocess
+import argparse
+
+from submititnow.umiacs.handlers import profile_handlers
+
+parser = argparse.ArgumentParser()
+parser.add_argument("config", type=str)
+parser.add_argument("shell", nargs="+", default="zsh")
+args = parser.parse_args()
+
+
+def removeprefix(var: str, prefix: str):
+    return var[len(prefix) :] if var.startswith(prefix) else var
+
+
+def load_config(config_filename: str):
+    with open(config_filename) as f:
+        config = json.load(f)
+    if "profile" in config:
+        profile = config.pop("profile")
+        config = profile_handlers[profile](config)
+
+    return {
+        removeprefix(key, "slurm_").replace("_", "-"): value
+        for key, value in config.items()
+    }
+
+
+cmd_args = load_config(args.config)
+
+
+# Make Bash command
+cmd = "srun"
+for key, value in cmd_args.items():
+    cmd += f" --{key}={value}"
+cmd += " --job-name=llms"
+shell_cmd = " ".join(args.shell)
+cmd += f" --pty {shell_cmd}"
+
+print(cmd)
+
+subprocess.run(cmd, shell=True)
