@@ -36,7 +36,8 @@ def add_slurm_arguments(parser: argparse.ArgumentParser):
     slurm_group = parser.add_argument_group("SLURM parameters")
     slurm_group.add_argument(
         "--config",
-        default=None,
+        default=[],
+        action="append",
         help="SubmititNow config file for SLURM.",
         dest="slurm_config",
     )
@@ -134,11 +135,16 @@ def load_slurm_config(config_filename: str) -> Dict[str, Any]:
 
 def get_slurm_params(args: argparse.Namespace) -> Dict[str, Any]:
     # Grabs all SLURM arguments from the parser that are explicitly set to a value
-    slurm_args = {
+    slurm_cli_args = {
         k: v for k, v in vars(args).items() if k.startswith("slurm_") and v is not None
     }
-    if slurm_args.get("slurm_config") is not None:
-        config_filename = slurm_args.pop("slurm_config")
-        default_args = load_slurm_config(config_filename)
-        slurm_args = {**default_args, **slurm_args}
-    return slurm_args
+    slurm_config_args = {}
+
+    config_filenames = slurm_cli_args.pop("slurm_config")
+    for config_filename in config_filenames:
+        slurm_config_args = {
+            **slurm_config_args,
+            **load_slurm_config(config_filename),
+        }
+    slurm_cli_args = {**slurm_config_args, **slurm_cli_args}
+    return slurm_cli_args
